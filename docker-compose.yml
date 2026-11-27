@@ -1,0 +1,140 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. PostgreSQL 16 with pgvector Extension
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: job360-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-job360_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-job360_password}
+      POSTGRES_DB: ${POSTGRES_DB:-job360_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-job360_user} -d ${POSTGRES_DB:-job360_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # 2. Redis 7.2 (Task Queue & Caching Tier)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: job360-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # 3. Backend API Service (FastAPI / Python 3.12)
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: job360-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-job360_user}:${POSTGRES_PASSWORD:-job360_password}@postgres:5432/${POSTGRES_DB:-job360_db}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env.example
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # ---------------------------------------------------------------------------
+  # 4. Celery Background Worker
+  # ---------------------------------------------------------------------------
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: job360-celery-worker
+    restart: always
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-job360_user}:${POSTGRES_PASSWORD:-job360_password}@postgres:5432/${POSTGRES_DB:-job360_db}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env.example
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: ["celery", "-A", "app.core.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
+
+  # ---------------------------------------------------------------------------
+  # 5. Celery Beat Scheduler (Autonomous Job Scout Cron)
+  # ---------------------------------------------------------------------------
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: job360-celery-beat
+    restart: always
+    environment:
+      - ENVIRONMENT=development
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    env_file:
+      - .env.example
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: ["celery", "-A", "app.core.celery_app", "beat", "--loglevel=info"]
+
+  # ---------------------------------------------------------------------------
+  # 6. Frontend Client (Next.js 14 App Router)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: job360-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: ["npm", "run", "dev"]
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
