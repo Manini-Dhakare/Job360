@@ -2,15 +2,15 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import CheckConstraint, Column, DateTime, Enum, ForeignKey, Integer, String
-from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
+from app.core.db_types import GUID
 
 
 class Credit(Base):
     __tablename__ = "credits"
 
-    credit_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), unique=True, nullable=False, index=True)
+    credit_id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.user_id"), unique=True, nullable=False, index=True)
     balance = Column(Integer, default=5, nullable=False)
     lifetime_granted = Column(Integer, default=5, nullable=False)
     lifetime_consumed = Column(Integer, default=0, nullable=False)
@@ -24,8 +24,8 @@ class Credit(Base):
 class CreditTransaction(Base):
     __tablename__ = "credit_transactions"
 
-    tx_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True)
+    tx_id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.user_id"), nullable=False, index=True)
     amount = Column(Integer, nullable=False)
     tx_type = Column(Enum("REFILL", "CONSUME", "REFUND", "BONUS", name="credit_tx_type_enum"), nullable=False)
     reason = Column(String(255), nullable=False)
@@ -36,8 +36,8 @@ class CreditTransaction(Base):
 class Subscription(Base):
     __tablename__ = "subscriptions"
 
-    sub_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False, index=True)
+    sub_id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(GUID(), ForeignKey("users.user_id"), nullable=False, index=True)
     stripe_customer_id = Column(String(255), unique=True, nullable=False)
     stripe_subscription_id = Column(String(255), nullable=True)
     tier = Column(Enum("FREE", "PRO", "UNLIMITED", name="subscription_tier_enum"), default="FREE", nullable=False)

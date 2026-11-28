@@ -6,14 +6,16 @@
 # Core Framework & Asynchronous Web Server
 fastapi>=0.111.0,<0.116.0
 uvicorn[standard]>=0.30.0,<0.32.0
-pydantic>=2.7.0,<3.0.0
+pydantic[email]>=2.7.0,<3.0.0
+email-validator>=2.1.0
 pydantic-settings>=2.3.0,<3.0.0
 python-multipart>=0.0.9
 
-# Database, Async Driver & Migrations (PostgreSQL 16 + pgvector)
+# Database, Async Driver & Migrations (PostgreSQL 16 + pgvector + SQLite local dev)
 asyncpg>=0.29.0
+aiosqlite>=0.20.0
 psycopg2-binary>=2.9.9
-SQLAlchemy>=2.0.30
+SQLAlchemy[asyncio]>=2.0.30
 alembic>=1.13.1
 pgvector>=0.3.0
 

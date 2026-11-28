@@ -3,7 +3,7 @@ Job360 - AI-Powered Career Platform
 FastAPI Application Entry Point & Core Middleware Configuration
 """
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -18,6 +18,24 @@ async def lifespan(app: FastAPI):
     """Lifecycle events for backend services."""
     setup_logging()
     logger.info("Initializing Job360 backend application services...")
+    if settings.ENVIRONMENT == "development":
+        try:
+            from app.core.database import Base, engine
+            # Ensure all ORM models are registered on Base.metadata
+            import app.modules.auth.models  # noqa: F401
+            import app.modules.profiles.models  # noqa: F401
+            import app.modules.resumes.models  # noqa: F401
+            import app.modules.jobs.models  # noqa: F401
+            import app.modules.matching.models  # noqa: F401
+            import app.modules.tracker.models  # noqa: F401
+            import app.modules.interview.models  # noqa: F401
+            import app.modules.billing.models  # noqa: F401
+
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database schema verified/initialized.")
+        except Exception as exc:
+            logger.warning(f"Database auto-init skipped (is PostgreSQL running?): {exc}")
     yield
     logger.info("Shutting down Job360 backend application services...")
 
@@ -55,6 +73,19 @@ async def health_check():
 async def readiness_check():
     """Readiness probe endpoint for container orchestrators."""
     return {"status": "ready", "service": settings.PROJECT_NAME}
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Format HTTPException using Section 9.1 standard error envelope."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=standard_error_response(
+            code=f"HTTP_{exc.status_code}",
+            message=str(exc.detail),
+            details={"path": request.url.path},
+        ),
+    )
 
 
 @app.exception_handler(Exception)
