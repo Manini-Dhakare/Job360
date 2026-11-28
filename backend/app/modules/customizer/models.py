@@ -2,18 +2,18 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, Text, UUID
 from app.core.database import Base
+from app.core.db_types import GUID, JSONType, StringArray
 
 
 class CustomizedResume(Base):
     __tablename__ = "customized_resumes"
 
-    cust_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    resume_id = Column(UUID(as_uuid=True), ForeignKey("resumes.resume_id"), nullable=False, index=True)
-    job_id = Column(UUID(as_uuid=True), nullable=False, index=True)
-    customized_bullets = Column(JSONB, nullable=False)
-    added_skills = Column(ARRAY(Text), default=list)
+    cust_id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    resume_id = Column(GUID(), ForeignKey("resumes.resume_id"), nullable=False, index=True)
+    job_id = Column(GUID(), nullable=False, index=True)
+    customized_bullets = Column(JSONType(), nullable=False)
+    added_skills = Column(StringArray(), default=list)
     pdf_url = Column(String(500), nullable=True)
     docx_url = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

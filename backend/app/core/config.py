@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "job360_user"
     POSTGRES_PASSWORD: str = "job360_password"
     POSTGRES_DB: str = "job360_db"
-    POSTGRES_HOST: str = "postgres"
+    POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
-    DATABASE_URL: str = "postgresql+asyncpg://job360_user:job360_password@localhost:5432/job360_db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./job360_local.db"
 
     # Redis & Celery
     REDIS_URL: str = "redis://localhost:6379/0"

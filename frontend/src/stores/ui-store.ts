@@ -10,7 +10,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  isSidebarOpen: true,
+  isSidebarOpen: false,
   activeJobId: null,
   isCustomizerOpen: false,
   setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
